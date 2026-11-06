@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS AI Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            background: #1e293b;
+            padding: 1rem;
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: bold;
+            border-bottom: 1px solid #334155;
+        }
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        .message {
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            max-width: 75%;
+            word-wrap: break-word;
+        }
+        .user {
+            background: #3b82f6;
+            align-self: flex-end;
+        }
+        .assistant {
+            background: #334155;
+            align-self: flex-start;
+        }
+        #input-container {
+            background: #1e293b;
+            padding: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+            box-sizing: border-box;
+            border-top: 1px solid #334155;
+        }
+        input {
+            flex: 1;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid #475569;
+            background: #0f172a;
+            color: #fff;
+            outline: none;
+        }
+        button {
+            padding: 0.75rem 1.5rem;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <header>JARVIS AI Assistant</header>
+    
+    <div id="chat-container">
+        <div class="message assistant">Hello! I am JARVIS. How can I help you today?</div>
+    </div>
+
+    <div id="input-container">
+        <input type="text" id="user-input" placeholder="Type a message..." autofocus>
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        let accessCode = sessionStorage.getItem("jarvis_code");
+        if (!accessCode) {
+            accessCode = prompt("Enter JARVIS Access Code:");
+            if (accessCode) {
+                sessionStorage.setItem("jarvis_code", accessCode);
+            }
+        }
+
+        const chatContainer = document.getElementById("chat-container");
+        const userInput = document.getElementById("user-input");
+
+        userInput.addEventListener("keypress", function (e) {
+            if (e.key === "Enter") sendMessage();
+        });
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            appendMessage(text, "user");
+            userInput.value = "";
+
+            try {
+                const response = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-jarvis-access-code": accessCode || ""
+                    },
+                    body: JSON.stringify({
+                        messages: [{ role: "user", content: text }]
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    appendMessage(data.text, "assistant");
+                } else {
+                    appendMessage(data.error || "Error connecting to server.", "assistant");
+                }
+            } catch (err) {
+                appendMessage("Failed to reach server.", "assistant");
+            }
+        }
+
+        function appendMessage(text, sender) {
+            const msgDiv = document.createElement("div");
+            msgDiv.className = `message ${sender}`;
+            msgDiv.textContent = text;
+            chatContainer.appendChild(msgDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html>
