@@ -1,0 +1,66 @@
+let history = [];
+
+async function run(raw) {
+    const message = raw.trim();
+    if (!message) return;
+    
+    // User message ko UI par dikhayein aur input clear karein
+    log(message, "user");
+    $("command").value = "";
+    
+    history.push({ role: "user", content: message });
+    $("status").textContent = "JARVIS AI THINKING...";
+
+    // Access code check karein
+    let accessCode = sessionStorage.getItem("jarvisAccessCode");
+    if (!accessCode) {
+        accessCode = prompt("Enter your private JARVIS access code:");
+        if (!accessCode) {
+            history.pop();
+            $("status").textContent = ""; // Status reset
+            reply("Access cancelled.");
+            return;
+        }
+        sessionStorage.setItem("jarvisAccessCode", accessCode);
+    }
+
+    try {
+        const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-jarvis-access-code": accessCode
+            },
+            body: JSON.stringify({ messages: history.slice(-12) })
+        });
+
+        // Agar access code galat hai (401 Unauthorized)
+        if (response.status === 401) {
+            sessionStorage.removeItem("jarvisAccessCode");
+            history.pop();
+            $("status").textContent = ""; // Status reset
+            reply("Access denied. Please enter the correct access code.");
+            return;
+        }
+
+        // Response ko safely JSON mein parse karein (agar server HTML ya text bhej de toh crash na ho)
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(data.error || "Server error occurred");
+        }
+
+        const answer = data.text;
+        history.push({ role: "assistant", content: answer });
+        history = history.slice(-12);
+        
+        $("status").textContent = ""; // Success par status hata dein
+        reply(answer);
+
+    } catch (error) {
+        console.error(error);
+        history.pop();
+        $("status").textContent = ""; // Error par bhi status hata dein
+        reply("AI connection failed. Please try again.");
+    }
+}
